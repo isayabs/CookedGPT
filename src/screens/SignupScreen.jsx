@@ -1,18 +1,20 @@
 import { View, Image } from 'react-native';
-import styles from '../styles/LoginSignUpScreen.styles';
+import styles from '../styles/LoginScreen.styles';
 import SignUpForm from '../components/SignUpForm';
-export default function SignUpScreen() {
+export default function SignUpScreen({ navigation }) {
   return (
-    <View style={styles.frame}>
+    <View style={styles.container}>
       <Image
-        source={require('../assets/images/login_title.png')}
+        source={require('../../assets/LogoText.png')}
         style={styles.imageTitle}
+        resizeMode="contain"
       />
       <Image
-        source={require('../assets/images/login_image.png')}
+        source={require('../../assets/LogoIcon.png')}
         style={styles.imageStyle}
+        resizeMode="contain"
       />
-      <SignUpForm />
+      <SignUpForm navigation={navigation} />
     </View>
   );
 }
