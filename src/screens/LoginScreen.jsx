@@ -1,22 +1,21 @@
-import { View, Text, Image, Pressable } from 'react-native';
+import { View, Image } from 'react-native';
 import LoginForm from '../components/LoginForm';
-import styles from '../styles/LoginSignUpScreen.style';
+import styles from '../styles/LoginScreen.styles';
 
-export default function LoginScreen() {
+export default function LoginScreen({ navigation }) {
   return (
-    <View style={styles.frame}>
+    <View style={styles.container}>
       <Image
-        source={require('../assets/LogoText.png')}
-        style={styles.imageStyle}
-      />
-      <Image
-        source={require('../assets/appIcon.png')}
+        source={require('../../assets/LogoText.png')}
         style={styles.imageTitle}
+        resizeMode="contain"
       />
-      <LoginForm />
-      <Pressable style={styles.button}>
-        <Text style={styles.buttonText}>Don't have an account? Sign Up</Text>
-      </Pressable>
+      <Image
+        source={require('../../assets/LogoIcon.png')}
+        style={styles.imageStyle}
+        resizeMode="contain"
+      />
+      <LoginForm navigation={navigation} />
     </View>
   );
 }
