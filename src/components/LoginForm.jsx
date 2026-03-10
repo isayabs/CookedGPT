@@ -1,6 +1,6 @@
 import { View, Text, Pressable, TextInput, Alert } from 'react-native';
-import styles from '../styles/LoginSignUpScreen.styles';
-export default function LoginForm() {
+import styles from '../styles/LoginScreen.styles';
+export default function LoginForm({ navigation }) {
   const handleLogin = () => {};
   function validateEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -28,17 +28,19 @@ export default function LoginForm() {
         );
   }
   return (
-    <View>
+    <View style={styles.formContainer}>
       <Text style={styles.label}>Email</Text>
       <TextInput
         style={styles.input}
         placeholder="Enter your email"
+        placeholderTextColor={styles.placeholderTextColor}
         validateEmail={validateEmail}
       />
       <Text style={styles.label}>Password</Text>
       <TextInput
         style={styles.input}
         placeholder="Enter your password"
+        placeholderTextColor={styles.placeholderTextColor}
         secureTextEntry
         validatePassword={validatePassword}
       />
@@ -46,10 +48,12 @@ export default function LoginForm() {
       <Pressable style={styles.button} onPress={handleLogin}>
         <Text style={styles.buttonText}>Login</Text>
       </Pressable>
-      <Text style={styles.legendText}>Don't have an account?</Text>
-      <Pressable style={styles.button}>
-        <Text style={styles.linkText}>Sign Up</Text>
-      </Pressable>
+      <View style={styles.signUpContainer}>
+        <Text style={styles.legendText}>Don't have an account?</Text>
+        <Pressable onPress={() => navigation.navigate('Signup')}>
+          <Text style={styles.linkText}>Sign Up</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
