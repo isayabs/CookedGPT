@@ -1,8 +1,7 @@
 import { View, Image } from 'react-native';
-import LoginForm from '../components/LoginForm';
 import styles from '../styles/LoginScreen.styles';
-
-export default function LoginScreen({ navigation }) {
+import SignUpForm from '../components/SignUpForm';
+export default function SignUpScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <Image
@@ -15,7 +14,7 @@ export default function LoginScreen({ navigation }) {
         style={styles.imageStyle}
         resizeMode="contain"
       />
-      <LoginForm navigation={navigation} />
+      <SignUpForm navigation={navigation} />
     </View>
   );
 }
