@@ -1,7 +1,62 @@
+import { useState } from 'react';
 import { View, Text, Pressable, TextInput, Alert } from 'react-native';
 import styles from '../styles/LoginScreen.styles';
+
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../utils/firebase';
+
+
 export default function LoginForm({ navigation }) {
-  const handleLogin = () => {};
+  //stuf
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleLogin = async () => {
+    if (!validateEmail(email)) return;
+    if (!validatePassword(password)) return;
+
+    setError('');
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
+      const user = userCredential.user;
+
+      console.log("Logged in:", user);
+
+      Alert.alert("Success", "Logged in successfully!");
+
+      navigation.navigate("Home");
+    } catch (error) {
+      // codes from https://firebase.google.com/docs/auth/admin/errors
+      const code = error?.code ?? '';
+      let friendly = 'Login failed. Please try again.';
+      switch (code) {
+        case 'auth/invalid-credential':
+          friendly = 'Invalid credentials. please try again.';
+          break;
+        case 'auth/user-not-found':
+          friendly = "No account found with that email.";
+          break;
+        case 'auth/invalid-email':
+          friendly = 'That email address is invalid.';
+          break;
+        case 'auth/too-many-requests':
+          friendly = 'Too many attempts. Try again later.';
+          break;
+      }
+
+      console.error(code, error);
+      setError(friendly);
+      Alert.alert('Login Error', friendly);
+    }
+  };
+
   function validateEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
@@ -35,6 +90,7 @@ export default function LoginForm({ navigation }) {
         placeholder="Enter your email"
         placeholderTextColor={styles.placeholderTextColor}
         validateEmail={validateEmail}
+        onChangeText={setEmail}
       />
       <Text style={styles.label}>Password</Text>
       <TextInput
@@ -43,6 +99,7 @@ export default function LoginForm({ navigation }) {
         placeholderTextColor={styles.placeholderTextColor}
         secureTextEntry
         validatePassword={validatePassword}
+        onChangeText={setPassword}
       />
       <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
       <Pressable style={styles.button} onPress={handleLogin}>
