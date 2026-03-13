@@ -1,7 +1,10 @@
 import React from 'react';
 import { View, Image, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function Header({ activeTab, onNavigate, onBack }) {
+  const insets = useSafeAreaInsets();
+
   if (activeTab === 'profile' || activeTab === 'recipe') {
     return (
       <View style={styles.container}>
@@ -13,19 +16,22 @@ export default function Header({ activeTab, onNavigate, onBack }) {
   }
 
   return (
-    <View style={styles.container}>
-      <Image
-        source={require('../res/appIcon.png')}
-        style={styles.logo}
-        resizeMode="contain"
-      />
-      <TouchableOpacity onPress={() => onNavigate('profile')}>
+    <View style={{ backgroundColor: '#C76649', paddingTop: insets.top - 25 }}>
+      <View style={styles.container}>
         <Image
-          source={require('../res/ProfileImage.png')}
-          style={styles.profileImage}
-          resizeMode="cover"
+          source={require('../../res/appIcon.png')}
+          style={styles.logo}
+          resizeMode="contain"
         />
-      </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => onNavigate('profile')}>
+          <Image
+            source={require('../../res/ProfileImage.png')}
+            style={styles.profileImage}
+            resizeMode="cover"
+          />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }

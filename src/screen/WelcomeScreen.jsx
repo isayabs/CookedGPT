@@ -38,7 +38,7 @@ export default function WelcomeScreen({ navigation }) {
         <Text style={styles.secondaryText}>Create Account</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => navigation.navigate("Home")}>
+      <TouchableOpacity onPress={() => navigation.navigate("MainApp")}>
         <Text style={styles.guest}>Continue as Guest</Text>
       </TouchableOpacity>
     </View>

@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const TABS = [
-  { key: 'camera',    label: 'Camera',    icon: '⊙' },
-  { key: 'favorites', label: 'Favorites', icon: '♡' },
   { key: 'home',      label: 'Home',      icon: '⌂' },
+  { key: 'favorites', label: 'Favorites', icon: '♡' },
+  { key: 'camera',    label: 'Camera',    icon: '⊙' },
   { key: 'settings',  label: 'Settings',  icon: '⚙' },
 ];
 
@@ -36,7 +37,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
     backgroundColor: '#C76649',
-    height: 64,
+    height: 55,
   },
   tab: {
     flex: 1,
