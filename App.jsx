@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Navbar from './components/Navbar';
-import Header from './components/Header';
-import Home from './pages/Home';
-import Camera from './pages/Camera';
-import Favorites from './pages/Favorites';
-import Settings from './pages/Settings';
-import Profile from './pages/Profile';
-import Recipe from './pages/Recipe';
+import Navbar from './src/components/Navbar';
+import Header from './src/components/Header';
+import Home from './src/screen/HomeScreen';
+import Camera from './src/screen/CameraScreen';
+import Favorites from './src/screen/FavoritesScreen';
+import Settings from './src/screen/SettingsScreen';
+import Profile from './src/screen/ProfileScreen';
+import Recipe from './src/screen/RecipeScreen';
 
 const PAGES = {
   home:      Home,

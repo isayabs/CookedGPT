@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator,
 } from 'react-native';
-import { ALL_INGREDIENTS, ALL_RECIPES } from '../data/index';
+import { ALL_INGREDIENTS, ALL_RECIPES } from '../../data/index';
 
 const SUGGESTED = ALL_INGREDIENTS.slice(0, 12);
 const RECENT    = ['Salmon', 'Broccoli', 'Rice', 'Soy Sauce', 'Ginger', 'Garlic', 'Chicken'];

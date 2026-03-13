@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { ALL_RECIPES } from '../data/index';
+import { ALL_RECIPES } from '../../data/index';
 
 function RecipeCard({ recipe, onOpenRecipe }) {
   return (

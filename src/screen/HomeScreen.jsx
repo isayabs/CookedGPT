@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Image, TextInput, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { ALL_RECIPES, TRENDING, LATEST, CATEGORIES } from '../data/index';
+import { ALL_RECIPES, TRENDING, LATEST, CATEGORIES } from '../../data/index';
 
 export default function Home({ onOpenRecipe }) {
   const [query, setQuery] = useState('');

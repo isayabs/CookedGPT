@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { ALL_RECIPES } from '../data/index';
+import { ALL_RECIPES } from '../../data/index';
 
 export default function Recipe({ recipeId, isFavorited, onToggleFavorite }) {
   const recipe = ALL_RECIPES.find(r => r.id === recipeId);
