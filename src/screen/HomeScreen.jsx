@@ -36,7 +36,7 @@ export default function Home({ onOpenRecipe }) {
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-      <Image source={require('../res/barTop.png')} style={styles.banner} />
+      <Image source={require('../../res/barTop.png')} style={styles.banner} />
 
       <View style={styles.searchBar}>
         <TextInput
