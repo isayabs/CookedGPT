@@ -10,10 +10,13 @@ export default function LoginForm({ navigation }) {
   //stuf
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
   const handleLogin = async () => {
     if (!validateEmail(email)) return;
     if (!validatePassword(password)) return;
+
+    setError('');
 
     try {
       const userCredential = await signInWithEmailAndPassword(
@@ -30,7 +33,27 @@ export default function LoginForm({ navigation }) {
 
       navigation.navigate("Home");
     } catch (error) {
-      Alert.alert("Login Error", error.message);
+      // codes from https://firebase.google.com/docs/auth/admin/errors
+      const code = error?.code ?? '';
+      let friendly = 'Login failed. Please try again.';
+      switch (code) {
+        case 'auth/invalid-credential':
+          friendly = 'Invalid credentials. please try again.';
+          break;
+        case 'auth/user-not-found':
+          friendly = "No account found with that email.";
+          break;
+        case 'auth/invalid-email':
+          friendly = 'That email address is invalid.';
+          break;
+        case 'auth/too-many-requests':
+          friendly = 'Too many attempts. Try again later.';
+          break;
+      }
+
+      console.error(code, error);
+      setError(friendly);
+      Alert.alert('Login Error', friendly);
     }
   };
 
