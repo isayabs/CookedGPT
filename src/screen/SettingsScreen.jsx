@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from 'react-native';
+import { signOut } from 'firebase/auth';
+import { auth } from '../utils/firebase';
 
 function Section({ title, children }) {
   return (
@@ -36,10 +38,22 @@ function ToggleRow({ label, value, onToggle }) {
   );
 }
 
-export default function Settings() {
+export default function Settings({ navigation }) {
   const [notifications, setNotifications] = useState(true);
-  const [darkMode, setDarkMode]           = useState(false);
-  const [metricUnits, setMetricUnits]     = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
+  const [metricUnits, setMetricUnits] = useState(true);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Welcome' }],
+      });
+    } catch (error) {
+      console.log('Logout error:', error);
+    }
+  };
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
@@ -52,8 +66,8 @@ export default function Settings() {
 
       <Section title="Preferences">
         <ToggleRow label="Push Notifications" value={notifications} onToggle={setNotifications} />
-        <ToggleRow label="Dark Mode"          value={darkMode}       onToggle={setDarkMode} />
-        <ToggleRow label="Metric Units"       value={metricUnits}    onToggle={setMetricUnits} />
+        <ToggleRow label="Dark Mode" value={darkMode} onToggle={setDarkMode} />
+        <ToggleRow label="Metric Units" value={metricUnits} onToggle={setMetricUnits} />
         <Row label="Dietary Preferences" value="None" />
         <Row label="Cuisine Interests" value="All" />
       </Section>
@@ -65,7 +79,7 @@ export default function Settings() {
       </Section>
 
       <Section title="">
-        <Row label="Sign Out" showArrow={false} danger />
+        <Row label="Log Out" showArrow={false} danger onPress={handleLogout} />
       </Section>
 
     </ScrollView>

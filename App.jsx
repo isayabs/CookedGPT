@@ -32,10 +32,10 @@ const PAGES = {
 // Pages that show a back button in the header instead of the normal logo bar
 const BACK_PAGES = ['profile', 'recipe'];
 
-function MainAppScreen() {
+function MainAppScreen({ navigation }) {
   return (
     <SafeAreaProvider>
-      <AppContent />
+      <AppContent navigation={navigation} />
     </SafeAreaProvider>
   );
 }
@@ -53,7 +53,7 @@ function App() {
   );
 }
 
-function AppContent() {
+function AppContent({ navigation }) {
   const [activeTab, setActiveTab] = useState('home');
   const [prevTab, setPrevTab] = useState('home');
   const [navParams, setNavParams] = useState({});
@@ -90,6 +90,7 @@ function AppContent() {
   }
 
   const pageProps = {
+    navigation,
     onOpenRecipe: openRecipe,
     ...(activeTab === 'recipe' && {
       recipeId: navParams.recipeId,
