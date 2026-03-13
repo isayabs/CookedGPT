@@ -79,7 +79,7 @@ export default function Settings({ navigation }) {
       </Section>
 
       <Section title="">
-        <Row label="Log Out" showArrow={false} danger onPress={handleLogout} />
+        <Row label="Sign Out" showArrow={false} danger onPress={handleLogout} />
       </Section>
 
     </ScrollView>
