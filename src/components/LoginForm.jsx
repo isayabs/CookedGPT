@@ -1,7 +1,39 @@
+import { useState } from 'react';
 import { View, Text, Pressable, TextInput, Alert } from 'react-native';
 import styles from '../styles/LoginScreen.styles';
+
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../utils/firebase';
+
+
 export default function LoginForm({ navigation }) {
-  const handleLogin = () => {};
+  //stuf
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleLogin = async () => {
+    if (!validateEmail(email)) return;
+    if (!validatePassword(password)) return;
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
+      const user = userCredential.user;
+
+      console.log("Logged in:", user);
+
+      Alert.alert("Success", "Logged in successfully!");
+
+      navigation.navigate("Home");
+    } catch (error) {
+      Alert.alert("Login Error", error.message);
+    }
+  };
+
   function validateEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
@@ -35,6 +67,7 @@ export default function LoginForm({ navigation }) {
         placeholder="Enter your email"
         placeholderTextColor={styles.placeholderTextColor}
         validateEmail={validateEmail}
+        onChangeText={setEmail}
       />
       <Text style={styles.label}>Password</Text>
       <TextInput
@@ -43,6 +76,7 @@ export default function LoginForm({ navigation }) {
         placeholderTextColor={styles.placeholderTextColor}
         secureTextEntry
         validatePassword={validatePassword}
+        onChangeText={setPassword}
       />
       <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
       <Pressable style={styles.button} onPress={handleLogin}>
