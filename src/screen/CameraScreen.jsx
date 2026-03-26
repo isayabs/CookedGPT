@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, PermissionsAndroid, Platform, Linking, AppState } from 'react-native';
 import { ALL_INGREDIENTS, ALL_RECIPES } from '../../data/index';
+import CameraPermissionError from '../components/CameraPermissionError';
+import { Camera, useCameraDevice } from 'react-native-vision-camera';
+import { styles, ACCENT } from '../styles/CameraScreen.styles';
 
 const SUGGESTED = ALL_INGREDIENTS.slice(0, 12);
 const RECENT    = ['Salmon', 'Broccoli', 'Rice', 'Soy Sauce', 'Ginger', 'Garlic', 'Chicken'];
 
-export default function Camera({ onOpenRecipe }) {
+export default function CameraScreen({ onOpenRecipe }) {
   const [activeTab, setActiveTab] = useState('scan');
   const [flashOn, setFlashOn] = useState(false);
   const [yourIngredients, setYourIngredients] = useState([]);
@@ -16,7 +17,69 @@ export default function Camera({ onOpenRecipe }) {
   const [isSearching, setIsSearching] = useState(false);
   const [recipeResults, setRecipeResults] = useState([]);
   const [showResults, setShowResults] = useState(false);
+  const [cameraPermission, setCameraPermission] = useState('unknown');
+  const [capturedPhoto, setCapturedPhoto] = useState(null);
   const debounceTimer = useRef(null);
+  const cameraRef = useRef(null);
+  const device = useCameraDevice('back');
+  console.log('Camera device:', device);
+
+  async function requestCameraPermission() {
+  if (Platform.OS === 'android') {
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+        {
+          title: 'Camera Permission',
+          message: 'Allow CookedGPT to scan ingredients using your camera.',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'Allow',
+        }
+      );
+
+      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+        setCameraPermission('granted');
+      } else {
+        setCameraPermission('denied');
+      }
+
+    } catch (err) {
+      console.warn('Camera permission error:', err?.message || err);
+      setCameraPermission('denied');
+    }
+  }
+}
+
+function openAppSettings() {
+  Linking.openSettings();
+}
+
+async function checkCameraPermission() {
+  if (Platform.OS === 'android') {
+    const isGranted = await PermissionsAndroid.check(
+      PermissionsAndroid.PERMISSIONS.CAMERA
+    );
+
+    if (isGranted) {
+      setCameraPermission('granted');
+    } else {
+      setCameraPermission('denied');
+    }
+  }
+}
+
+async function capturePhoto() {
+  try {
+    if (cameraRef.current) {
+      const photo = await cameraRef.current.takePhoto();
+      setCapturedPhoto(photo);
+      console.log('Captured photo:', photo);
+    }
+  } catch (error) {
+    console.log('Capture error:', error);
+  }
+}
 
   useEffect(() => {
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
@@ -39,6 +102,24 @@ export default function Camera({ onOpenRecipe }) {
 
     return () => clearTimeout(debounceTimer.current);
   }, [ingredientQuery]);
+
+  useEffect(() => {
+    if (activeTab === 'scan' && cameraPermission === 'unknown') {
+      requestCameraPermission();
+    }
+  }, [activeTab, cameraPermission]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active') {
+        checkCameraPermission();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   function addIngredient(item) {
     if (!yourIngredients.includes(item)) {
@@ -88,36 +169,74 @@ export default function Camera({ onOpenRecipe }) {
           </Text>
         </TouchableOpacity>
       </View>
-
+      
       {/* Scan Ingredients Tab */}
       {activeTab === 'scan' && (
-        <View style={styles.scanContainer}>
-          {/* Viewfinder */}
-          <View style={styles.viewfinder}>
-            <View style={styles.cornerTL} />
-            <View style={styles.cornerTR} />
-            <View style={styles.cornerBL} />
-            <View style={styles.cornerBR} />
-            <Text style={styles.viewfinderHint}>Point camera at ingredients</Text>
+        cameraPermission === 'unknown' ? (
+          <View style={styles.scanContainer}>
+            <ActivityIndicator size="large" color="#fff" />
+            <Text style={styles.viewfinderHint}>Requesting camera permission...</Text>
           </View>
+        ) : cameraPermission === 'denied' ? (
+          <CameraPermissionError onRetry={openAppSettings} />
+        ) : (
+          <View style={styles.scanContainer}>
 
-          {/* Controls */}
-          <View style={styles.scanControls}>
-            <TouchableOpacity style={styles.iconBtn}>
-              <Text style={styles.iconBtnText}>🖼️</Text>
-              <Text style={styles.iconBtnLabel}>Gallery</Text>
-            </TouchableOpacity>
+            {/* Viewfinder */}
+            <View style={styles.viewfinderWrap}>
+              <View style={styles.viewfinder}>
+                {!device && cameraPermission === 'granted' && (
+                  <Text style={{ color: '#fff' }}>Camera not available</Text>
+                )}
 
-            <TouchableOpacity style={styles.captureBtn}>
-              <View style={styles.captureBtnInner} />
-            </TouchableOpacity>
+                {device && cameraPermission === 'granted' && (
+                  <Camera
+                    ref={cameraRef}
+                    style={StyleSheet.absoluteFill}
+                    device={device}
+                    isActive={activeTab === 'scan' && cameraPermission === 'granted'}
+                    photo={true}
+                    onError={error => console.log('Camera error:', error)}
+                  />
+                )}
+              </View>
 
-            <TouchableOpacity style={styles.iconBtn} onPress={() => setFlashOn(f => !f)}>
-              <Text style={styles.iconBtnText}>{flashOn ? '⚡' : '🔦'}</Text>
-              <Text style={styles.iconBtnLabel}>{flashOn ? 'Flash On' : 'Flash Off'}</Text>
-            </TouchableOpacity>
+              <View style={styles.cornerTL} />
+              <View style={styles.cornerTR} />
+              <View style={styles.cornerBL} />
+              <View style={styles.cornerBR} />
+            </View>
+
+            <View style={styles.messageArea}>
+              <Text style={styles.viewfinderHint}>
+                {capturedPhoto ? 'Photo captured' : 'Point camera at ingredients'}
+              </Text>
+            </View>
+
+            {/* Controls */}
+            <View style={styles.scanControls}>
+              <TouchableOpacity style={styles.iconBtn}>
+                <Text style={styles.iconBtnText}>🖼️</Text>
+                <Text style={styles.iconBtnLabel}>Gallery</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.captureBtn} onPress={capturePhoto}>
+                <View style={styles.captureBtnInner} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.iconBtn}
+                onPress={() => setFlashOn(f => !f)}
+              >
+                <Text style={styles.iconBtnText}>{flashOn ? '⚡' : '🔦'}</Text>
+                <Text style={styles.iconBtnLabel}>
+                  {flashOn ? 'Flash On' : 'Flash Off'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
           </View>
-        </View>
+        )
       )}
 
       {/* Add Ingredients Tab */}
@@ -223,235 +342,3 @@ export default function Camera({ onOpenRecipe }) {
     </View>
   );
 }
-
-const ACCENT = '#C76649';
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-
-  // Tab bar
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  tabItem: {
-    flex: 1,
-    paddingVertical: 14,
-    alignItems: 'center',
-    borderBottomWidth: 3,
-    borderBottomColor: 'transparent',
-  },
-  tabItemActive: {
-    borderBottomColor: ACCENT,
-  },
-  tabLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#999',
-  },
-  tabLabelActive: {
-    color: ACCENT,
-    fontWeight: '700',
-  },
-
-  // Scan tab
-  scanContainer: {
-    flex: 1,
-    backgroundColor: '#111',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 32,
-  },
-  viewfinder: {
-    width: '80%',
-    aspectRatio: 1,
-    borderColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  cornerTL: { position: 'absolute', top: 0,    left: 0,  width: 30, height: 30, borderTopWidth: 3,    borderLeftWidth: 3,   borderColor: '#fff', borderRadius: 2 },
-  cornerTR: { position: 'absolute', top: 0,    right: 0, width: 30, height: 30, borderTopWidth: 3,    borderRightWidth: 3,  borderColor: '#fff', borderRadius: 2 },
-  cornerBL: { position: 'absolute', bottom: 0, left: 0,  width: 30, height: 30, borderBottomWidth: 3, borderLeftWidth: 3,   borderColor: '#fff', borderRadius: 2 },
-  cornerBR: { position: 'absolute', bottom: 0, right: 0, width: 30, height: 30, borderBottomWidth: 3, borderRightWidth: 3,  borderColor: '#fff', borderRadius: 2 },
-  viewfinderHint: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 14,
-  },
-  scanControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    width: '100%',
-    paddingHorizontal: 32,
-  },
-  iconBtn: {
-    alignItems: 'center',
-  },
-  iconBtnText: {
-    fontSize: 28,
-  },
-  iconBtnLabel: {
-    color: '#fff',
-    fontSize: 11,
-    marginTop: 4,
-  },
-  captureBtn: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 4,
-    borderColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  captureBtnInner: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#fff',
-  },
-
-  // Add tab
-  addContainer: {
-    flex: 1,
-  },
-  addContent: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#222',
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  chipsRow: {
-    gap: 8,
-    paddingBottom: 4,
-  },
-  chip: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    alignItems: 'center',
-  },
-  chipText: {
-    fontSize: 13,
-    color: '#333',
-  },
-  chipPlus: {
-    fontSize: 13,
-    color: ACCENT,
-    fontWeight: '700',
-  },
-  yourChipsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chipSelected: {
-    flexDirection: 'row',
-    backgroundColor: ACCENT,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  chipSelectedText: {
-    fontSize: 13,
-    color: '#fff',
-    fontWeight: '500',
-  },
-  chipRemove: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    paddingHorizontal: 16,
-    height: 44,
-    marginTop: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#333',
-  },
-  clearBtn: {
-    paddingLeft: 8,
-  },
-  clearBtnText: {
-    fontSize: 14,
-    color: '#aaa',
-  },
-  emptyHint: {
-    color: '#aaa',
-    fontSize: 13,
-    fontStyle: 'italic',
-  },
-  resultCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 10,
-    padding: 14,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  resultInfo: {
-    flex: 1,
-  },
-  resultName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#222',
-    marginBottom: 2,
-  },
-  resultCategory: {
-    fontSize: 11,
-    color: ACCENT,
-    fontWeight: '500',
-    marginBottom: 6,
-  },
-  resultMeta: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  resultMetaText: {
-    fontSize: 12,
-    color: '#777',
-  },
-  findBtn: {
-    marginTop: 32,
-    backgroundColor: ACCENT,
-    borderRadius: 28,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  findBtnDisabled: {
-    backgroundColor: '#ccc',
-  },
-  findBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});
