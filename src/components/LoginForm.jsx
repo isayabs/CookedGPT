@@ -31,7 +31,7 @@ export default function LoginForm({ navigation }) {
 
       Alert.alert("Success", "Logged in successfully!");
 
-      navigation.navigate("Home");
+      navigation.replace("MainApp");
     } catch (error) {
       // codes from https://firebase.google.com/docs/auth/admin/errors
       const code = error?.code ?? '';
