@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, PermissionsAndroid, Platform, Linking, AppState } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, PermissionsAndroid, Platform, Linking, AppState, Image } from 'react-native';
 import { ALL_INGREDIENTS, ALL_RECIPES } from '../../data/index';
 import CameraPermissionError from '../components/CameraPermissionError';
 import { Camera, useCameraDevice } from 'react-native-vision-camera';
@@ -73,7 +73,7 @@ async function capturePhoto() {
   try {
     if (cameraRef.current) {
       const photo = await cameraRef.current.takePhoto();
-      setCapturedPhoto(photo);
+      setCapturedPhoto(photo.path);
       console.log('Captured photo:', photo);
     }
   } catch (error) {
@@ -145,6 +145,14 @@ async function capturePhoto() {
     setShowResults(true);
   }
 
+  function retakePhoto() {
+    setCapturedPhoto(null);
+  }
+
+  function usePhoto() {
+    console.log('Use photo:', capturedPhoto);
+  }
+
   return (
     <View style={styles.screen}>
 
@@ -185,19 +193,29 @@ async function capturePhoto() {
             {/* Viewfinder */}
             <View style={styles.viewfinderWrap}>
               <View style={styles.viewfinder}>
-                {!device && cameraPermission === 'granted' && (
-                  <Text style={{ color: '#fff' }}>Camera not available</Text>
-                )}
-
-                {device && cameraPermission === 'granted' && (
-                  <Camera
-                    ref={cameraRef}
+                {capturedPhoto ? (
+                  <Image
+                    source={{ uri: `file://${capturedPhoto}` }}
                     style={StyleSheet.absoluteFill}
-                    device={device}
-                    isActive={activeTab === 'scan' && cameraPermission === 'granted'}
-                    photo={true}
-                    onError={error => console.log('Camera error:', error)}
+                    resizeMode="cover"
                   />
+                ) : (
+                  <>
+                    {!device && cameraPermission === 'granted' && (
+                      <Text style={{ color: '#fff' }}>Camera not available</Text>
+                    )}
+
+                    {device && cameraPermission === 'granted' && (
+                      <Camera
+                        ref={cameraRef}
+                        style={StyleSheet.absoluteFill}
+                        device={device}
+                        isActive={activeTab === 'scan' && cameraPermission === 'granted'}
+                        photo={true}
+                        onError={error => console.log('Camera error:', error)}
+                      />
+                    )}
+                  </>
                 )}
               </View>
 
@@ -209,32 +227,63 @@ async function capturePhoto() {
 
             <View style={styles.messageArea}>
               <Text style={styles.viewfinderHint}>
-                {capturedPhoto ? 'Photo captured' : 'Point camera at ingredients'}
+                {capturedPhoto ? 'Review your photo' : 'Point camera at ingredients'}
               </Text>
             </View>
 
             {/* Controls */}
             <View style={styles.scanControls}>
-              <TouchableOpacity style={styles.iconBtn}>
-                <Text style={styles.iconBtnText}>🖼️</Text>
-                <Text style={styles.iconBtnLabel}>Gallery</Text>
-              </TouchableOpacity>
+              {capturedPhoto ? (
+                <>
+                  <View style={{ flex: 1, alignItems: 'center' }}>
+                    <TouchableOpacity style={styles.iconBtn} onPress={retakePhoto}>
+                      <Text style={styles.iconBtnText}>🔄</Text>
+                      <Text style={styles.iconBtnLabel}>Retake</Text>
+                    </TouchableOpacity>
+                  </View>
 
-              <TouchableOpacity style={styles.captureBtn} onPress={capturePhoto}>
-                <View style={styles.captureBtnInner} />
-              </TouchableOpacity>
+                  <View style={{ flex: 1, alignItems: 'center' }}>
+                    <TouchableOpacity style={styles.captureBtn} onPress={capturePhoto}>
+                      <View style={styles.captureBtnInner} />
+                    </TouchableOpacity>
+                  </View>
 
-              <TouchableOpacity
-                style={styles.iconBtn}
-                onPress={() => setFlashOn(f => !f)}
-              >
-                <Text style={styles.iconBtnText}>{flashOn ? '⚡' : '🔦'}</Text>
-                <Text style={styles.iconBtnLabel}>
-                  {flashOn ? 'Flash On' : 'Flash Off'}
-                </Text>
-              </TouchableOpacity>
+                  <View style={{ flex: 1, alignItems: 'center' }}>
+                    <TouchableOpacity style={styles.iconBtn} onPress={usePhoto}>
+                      <Text style={styles.iconBtnText}>✔️</Text>
+                      <Text style={styles.iconBtnLabel}>Use</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View style={{ flex: 1, alignItems: 'center' }}>
+                    <TouchableOpacity style={styles.iconBtn}>
+                      <Text style={styles.iconBtnText}>🖼️</Text>
+                      <Text style={styles.iconBtnLabel}>Gallery</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={{ flex: 1, alignItems: 'center' }}>
+                    <TouchableOpacity style={styles.captureBtn} onPress={capturePhoto}>
+                      <View style={styles.captureBtnInner} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={{ flex: 1, alignItems: 'center' }}>
+                    <TouchableOpacity
+                      style={styles.iconBtn}
+                      onPress={() => setFlashOn(f => !f)}
+                    >
+                      <Text style={styles.iconBtnText}>{flashOn ? '⚡' : '🔦'}</Text>
+                      <Text style={[styles.iconBtnLabel, { minWidth: 70, textAlign: 'center' }]}>
+                        {flashOn ? 'Flash On' : 'Flash Off'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
             </View>
-
           </View>
         )
       )}
