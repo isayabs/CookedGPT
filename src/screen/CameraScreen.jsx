@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, PermissionsAndroid, Platform, Linking, AppState } from 'react-native';
 import { ALL_INGREDIENTS, ALL_RECIPES } from '../../data/index';
+import CameraResult from '../components/CameraResult';
 import CameraPermissionError from '../components/CameraPermissionError';
 import { Camera, useCameraDevice } from 'react-native-vision-camera';
 import { styles, ACCENT } from '../styles/CameraScreen.styles';
@@ -12,6 +13,31 @@ export default function CameraScreen({ onOpenRecipe }) {
   const [activeTab, setActiveTab] = useState('scan');
   const [flashOn, setFlashOn] = useState(false);
   const [yourIngredients, setYourIngredients] = useState([]);
+  const [scanState, setScanState] = useState(null);       // null | 'scanning' | 'not_found' | 'found'
+  const [scanFound, setScanFound] = useState([]);
+
+  // Mock scan — replace with real AI call later
+  const MOCK_FOUND = ['Chicken', 'Garlic', 'Lemon', 'Spinach', 'Olive Oil'];
+  function handleCapture() {
+    setScanState('scanning');
+    setTimeout(() => {
+      const found = Math.random() > 0.3;            // 70% chance of finding something
+      setScanFound(found ? MOCK_FOUND : []);
+      setScanState(found ? 'found' : 'not_found');
+    }, 2000);
+  }
+
+  function handleAddScanned(ingredients) {
+    setYourIngredients(prev => {
+      const next = [...prev];
+      ingredients.forEach(i => { if (!next.includes(i)) next.push(i); });
+      return next;
+    });
+    setScanState(null);
+    setActiveTab('add');
+  }
+  //Refactor the above to use the real AI scanning function when ready, and handle loading/error states accordingly.
+  
   const [ingredientQuery, setIngredientQuery] = useState('');
   const [filteredIngredients, setFilteredIngredients] = useState(SUGGESTED);
   const [isSearching, setIsSearching] = useState(false);
