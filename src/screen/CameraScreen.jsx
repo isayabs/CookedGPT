@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator,
 } from 'react-native';
 import { ALL_INGREDIENTS, ALL_RECIPES } from '../../data/index';
+import CameraResult from '../components/CameraResult';
 
 const SUGGESTED = ALL_INGREDIENTS.slice(0, 12);
 const RECENT    = ['Salmon', 'Broccoli', 'Rice', 'Soy Sauce', 'Ginger', 'Garlic', 'Chicken'];
@@ -11,6 +12,31 @@ export default function Camera({ onOpenRecipe }) {
   const [activeTab, setActiveTab] = useState('scan');
   const [flashOn, setFlashOn] = useState(false);
   const [yourIngredients, setYourIngredients] = useState([]);
+  const [scanState, setScanState] = useState(null);       // null | 'scanning' | 'not_found' | 'found'
+  const [scanFound, setScanFound] = useState([]);
+
+  // Mock scan — replace with real AI call later
+  const MOCK_FOUND = ['Chicken', 'Garlic', 'Lemon', 'Spinach', 'Olive Oil'];
+  function handleCapture() {
+    setScanState('scanning');
+    setTimeout(() => {
+      const found = Math.random() > 0.3;            // 70% chance of finding something
+      setScanFound(found ? MOCK_FOUND : []);
+      setScanState(found ? 'found' : 'not_found');
+    }, 2000);
+  }
+
+  function handleAddScanned(ingredients) {
+    setYourIngredients(prev => {
+      const next = [...prev];
+      ingredients.forEach(i => { if (!next.includes(i)) next.push(i); });
+      return next;
+    });
+    setScanState(null);
+    setActiveTab('add');
+  }
+  //Refactor the above to use the real AI scanning function when ready, and handle loading/error states accordingly.
+  
   const [ingredientQuery, setIngredientQuery] = useState('');
   const [filteredIngredients, setFilteredIngredients] = useState(SUGGESTED);
   const [isSearching, setIsSearching] = useState(false);
@@ -108,7 +134,7 @@ export default function Camera({ onOpenRecipe }) {
               <Text style={styles.iconBtnLabel}>Gallery</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.captureBtn}>
+            <TouchableOpacity style={styles.captureBtn} onPress={handleCapture}>
               <View style={styles.captureBtnInner} />
             </TouchableOpacity>
 
@@ -117,6 +143,14 @@ export default function Camera({ onOpenRecipe }) {
               <Text style={styles.iconBtnLabel}>{flashOn ? 'Flash On' : 'Flash Off'}</Text>
             </TouchableOpacity>
           </View>
+          {scanState && (
+            <CameraResult
+              scanState={scanState}
+              foundIngredients={scanFound}
+              onClose={() => setScanState(null)}
+              onAddIngredients={handleAddScanned}
+            />
+          )}
         </View>
       )}
 

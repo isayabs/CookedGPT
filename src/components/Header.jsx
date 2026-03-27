@@ -15,13 +15,13 @@ export default function Header({ activeTab, onNavigate, onBack }) {
   return (
     <View style={styles.container}>
       <Image
-        source={require('../res/appIcon.png')}
+        source={require('../../res/appIcon.png')}
         style={styles.logo}
         resizeMode="contain"
       />
       <TouchableOpacity onPress={() => onNavigate('profile')}>
         <Image
-          source={require('../res/ProfileImage.png')}
+          source={require('../../res/ProfileImage.png')}
           style={styles.profileImage}
           resizeMode="cover"
         />
