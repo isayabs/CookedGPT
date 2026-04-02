@@ -105,11 +105,11 @@ export const styles = StyleSheet.create({
         fontSize: 13,
         alignSelf: 'center',
         marginTop: -80
-        },
+    },
     scanControls: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-around',
+        justifyContent: 'space-between',
         width: '100%',
         paddingHorizontal: 32,
     },
