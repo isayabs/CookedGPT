@@ -1,17 +1,71 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Image, TextInput, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { ALL_RECIPES, TRENDING, LATEST, CATEGORIES } from '../../data/index';
+import { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TextInput,
+  ScrollView,
+  ActivityIndicator,
+  TouchableOpacity,
+} from 'react-native';
 
-export default function Home({ onOpenRecipe }) {
+import {
+  fetchRandomMeals,
+  fetchRandomDrinks,
+  fetchByMealCategory,
+  fetchByMealArea,
+  fetchMainMeals,
+  searchMeals,
+  searchDrinks,
+} from '../api/recipes';
+
+import { CATEGORIES, CUISINE_FILTERS } from '../constants/filters';
+import { CategoryPill } from '../components/home-screen/CategoryPill';
+import { CuisinePill } from '../components/home-screen/CuisinePill';
+import { RecipeCard } from '../components/home-screen/RecipeCard';
+import { ListCard } from '../components/home-screen/ListCard';
+
+export default function Home({ onOpenRecipe, toggleFavorite, isFavorited }) {
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+
+  const [trending, setTrending] = useState([]);
+  const [latest, setLatest] = useState([]);
+  const [loadingHome, setLoadingHome] = useState(true);
+
+  const [activeCategory, setActiveCategory] = useState(null);
+  const [categoryResults, setCategoryResults] = useState([]);
+  const [loadingCategory, setLoadingCategory] = useState(false);
+
+  const [activeCuisine, setActiveCuisine] = useState(null);
+  const [cuisineResults, setCuisineResults] = useState([]);
+  const [loadingCuisine, setLoadingCuisine] = useState(false);
+
   const debounceTimer = useRef(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [t, l] = await Promise.all([
+          fetchRandomMeals(5),
+          fetchRandomMeals(5),
+        ]);
+        setTrending(t);
+        setLatest(l);
+      } catch (e) {
+        console.error('Home load error:', e);
+      } finally {
+        setLoadingHome(false);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
 
-    if (query.length <= 3) {
+    if (query.length <= 2) {
       setSearchResults([]);
       setIsSearching(false);
       return;
@@ -19,105 +73,252 @@ export default function Home({ onOpenRecipe }) {
 
     setIsSearching(true);
 
-    debounceTimer.current = setTimeout(() => {
-      const q = query.toLowerCase();
-      const results = ALL_RECIPES.filter(r =>
-        r.name.toLowerCase().includes(q) ||
-        r.category.toLowerCase().includes(q)
-      );
-      setSearchResults(results);
-      setIsSearching(false);
-    }, 2000);
+    debounceTimer.current = setTimeout(async () => {
+      try {
+        const [meals, drinks] = await Promise.all([
+          searchMeals(query),
+          searchDrinks(query),
+        ]);
+        const unique = Array.from(
+          new Map(
+            [...meals, ...drinks].map(i => [`${i.source}-${i.id}`, i]),
+          ).values(),
+        );
+        setSearchResults(unique);
+      } catch (e) {
+        console.error('Search error:', e);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 600);
 
     return () => clearTimeout(debounceTimer.current);
   }, [query]);
 
-  const isSearchActive = query.length > 3;
+  const clearAll = () => {
+    setActiveCategory(null);
+    setCategoryResults([]);
+    setActiveCuisine(null);
+    setCuisineResults([]);
+  };
+
+  const handleCategoryPress = async cat => {
+    if (activeCategory?.id === cat.id) {
+      setActiveCategory(null);
+      setCategoryResults([]);
+      return;
+    }
+    setActiveCategory(cat);
+    setActiveCuisine(null);
+    setCuisineResults([]);
+    setQuery('');
+    setLoadingCategory(true);
+    try {
+      let results = [];
+      if (cat.strategy === 'meal-category') {
+        results = await fetchByMealCategory(cat.mealDbKey);
+      } else if (cat.strategy === 'meal-main') {
+        results = await fetchMainMeals(cat.id === 'c3' ? 30 : 0);
+      } else if (cat.strategy === 'cocktail') {
+        results = await fetchRandomDrinks(20);
+      }
+      setCategoryResults(results);
+    } catch (e) {
+      console.error('Category fetch error:', e);
+      setCategoryResults([]);
+    } finally {
+      setLoadingCategory(false);
+    }
+  };
+
+  const handleCuisinePress = async filter => {
+    if (activeCuisine?.value === filter.value) {
+      setActiveCuisine(null);
+      setCuisineResults([]);
+      return;
+    }
+    setActiveCuisine(filter);
+    setActiveCategory(null);
+    setCategoryResults([]);
+    setQuery('');
+    setLoadingCuisine(true);
+    try {
+      const results =
+        filter.type === 'meal-category'
+          ? await fetchByMealCategory(filter.value)
+          : await fetchByMealArea(filter.value);
+      setCuisineResults(results);
+    } catch (e) {
+      console.error('Cuisine filter error:', e);
+      setCuisineResults([]);
+    } finally {
+      setLoadingCuisine(false);
+    }
+  };
+
+  const isSearchActive = query.length > 2;
+  const isCatActive = activeCategory !== null;
+  const isCuisineActive = activeCuisine !== null;
+  const isFiltered = isCatActive || isCuisineActive;
+  const filteredLabel = activeCategory?.name ?? activeCuisine?.label;
+  const filteredResults = isCatActive ? categoryResults : cuisineResults;
+  const loadingFiltered = isCatActive ? loadingCategory : loadingCuisine;
+
+  // Helper so we don't repeat these props on every ListCard
+  const cardProps = item => ({
+    item,
+    onPress: onOpenRecipe,
+    toggleFavorite,
+    isFavorited: isFavorited?.(item.id, item.source) ?? false,
+  });
+
+  if (loadingHome) {
+    return (
+      <View style={styles.fullCenter}>
+        <ActivityIndicator size="large" color="#C76649" />
+        <Text style={styles.loadingText}>Loading recipes…</Text>
+      </View>
+    );
+  }
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+    >
       <Image source={require('../../res/barTop.png')} style={styles.banner} />
 
+      {/* Search bar */}
       <View style={styles.searchBar}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search recipes..."
+          placeholder="Search recipes and drinks…"
           placeholderTextColor="#999"
           value={query}
-          onChangeText={setQuery}
+          onChangeText={text => {
+            setQuery(text);
+            clearAll();
+          }}
           returnKeyType="search"
         />
         {query.length > 0 && (
-          <TouchableOpacity onPress={() => setQuery('')} style={styles.clearBtn}>
+          <TouchableOpacity
+            onPress={() => setQuery('')}
+            style={styles.clearBtn}
+          >
             <Text style={styles.clearBtnText}>✕</Text>
           </TouchableOpacity>
         )}
       </View>
 
+      {/* Category pills */}
+      <Text style={styles.filterLabel}>Category</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.pillRow}
+      >
+        {CATEGORIES.map(cat => (
+          <CategoryPill
+            key={cat.id}
+            cat={cat}
+            active={activeCategory?.id === cat.id}
+            onPress={() => handleCategoryPress(cat)}
+          />
+        ))}
+      </ScrollView>
+
+      {/* Cuisine & diet pills */}
+      <Text style={styles.filterLabel}>Cuisine & Diet</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.pillRow}
+      >
+        {CUISINE_FILTERS.map(f => (
+          <CuisinePill
+            key={f.value}
+            filter={f}
+            active={activeCuisine?.value === f.value}
+            onPress={() => handleCuisinePress(f)}
+          />
+        ))}
+      </ScrollView>
+
+      {/* Search results */}
       {isSearchActive ? (
-        <View>
+        <>
           <Text style={styles.sectionTitle}>
-            {isSearching ? 'Searching...' : `Results for "${query}"`}
+            {isSearching ? 'Searching…' : `Results for "${query}"`}
           </Text>
           {isSearching ? (
-            <ActivityIndicator size="large" color="#C76649" style={styles.spinner} />
+            <ActivityIndicator
+              size="large"
+              color="#C76649"
+              style={styles.spinner}
+            />
           ) : searchResults.length === 0 ? (
-            <Text style={styles.noResults}>No recipes found.</Text>
+            <Text style={styles.noResults}>No results found.</Text>
           ) : (
-            searchResults.map(recipe => (
-              <TouchableOpacity key={recipe.id} style={styles.latestCard} onPress={() => onOpenRecipe(recipe.id)} activeOpacity={0.75}>
-                <View style={styles.latestImagePlaceholder} />
-                <View style={styles.latestInfo}>
-                  <Text style={styles.latestName}>{recipe.name}</Text>
-                  <Text style={styles.categoryTag}>{recipe.category}</Text>
-                  <View style={styles.cardMeta}>
-                    <Text style={styles.cardMetaText}>⏱ {recipe.time}</Text>
-                    <Text style={styles.cardMetaText}>🔥 {recipe.calories} cal</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
+            searchResults.map(item => (
+              <ListCard
+                key={`${item.source}-${item.id}`}
+                {...cardProps(item)}
+              />
             ))
           )}
-        </View>
+        </>
+      ) : // Filter results
+      isFiltered ? (
+        <>
+          <View style={styles.filterHeader}>
+            <Text style={styles.sectionTitle}>{filteredLabel}</Text>
+            <TouchableOpacity onPress={clearAll} style={styles.clearFilterBtn}>
+              <Text style={styles.clearFilterText}>✕ Clear</Text>
+            </TouchableOpacity>
+          </View>
+          {loadingFiltered ? (
+            <ActivityIndicator
+              size="large"
+              color="#C76649"
+              style={styles.spinner}
+            />
+          ) : filteredResults.length === 0 ? (
+            <Text style={styles.noResults}>No results found.</Text>
+          ) : (
+            filteredResults.map(item => (
+              <ListCard
+                key={`${item.source}-${item.id}`}
+                {...cardProps(item)}
+              />
+            ))
+          )}
+        </>
       ) : (
+        // Home feed
         <>
           <Text style={styles.sectionTitle}>Trending Recipes</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hScroll}>
-            {TRENDING.map(recipe => (
-              <TouchableOpacity key={recipe.id} style={styles.recipeCard} onPress={() => onOpenRecipe(recipe.id)} activeOpacity={0.75}>
-                <View style={styles.cardImagePlaceholder} />
-                <Text style={styles.cardName}>{recipe.name}</Text>
-                <View style={styles.cardMeta}>
-                  <Text style={styles.cardMetaText}>⏱ {recipe.time}</Text>
-                  <Text style={styles.cardMetaText}>🔥 {recipe.calories} cal</Text>
-                </View>
-              </TouchableOpacity>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.hScroll}
+          >
+            {trending.map(item => (
+              <RecipeCard
+                key={`trending-${item.id}`}
+                item={item}
+                onPress={onOpenRecipe}
+                toggleFavorite={toggleFavorite}
+                isFavorited={isFavorited?.(item.id, item.source) ?? false}
+              />
             ))}
           </ScrollView>
 
-          <Text style={styles.sectionTitle}>Explore Categories</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hScroll}>
-            {CATEGORIES.map(cat => (
-              <TouchableOpacity key={cat.id} style={styles.categoryCard} onPress={() => setQuery(cat.name)} activeOpacity={0.75}>
-                <Text style={styles.categoryEmoji}>{cat.emoji}</Text>
-                <Text style={styles.categoryName}>{cat.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          <Text style={styles.sectionTitle}>Latest Recipes</Text>
-          {LATEST.map(recipe => (
-            <TouchableOpacity key={recipe.id} style={styles.latestCard} onPress={() => onOpenRecipe(recipe.id)} activeOpacity={0.75}>
-              <View style={styles.latestImagePlaceholder} />
-              <View style={styles.latestInfo}>
-                <Text style={styles.latestName}>{recipe.name}</Text>
-                <Text style={styles.categoryTag}>{recipe.category}</Text>
-                <View style={styles.cardMeta}>
-                  <Text style={styles.cardMetaText}>⏱ {recipe.time}</Text>
-                  <Text style={styles.cardMetaText}>🔥 {recipe.calories} cal</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
+          <Text style={styles.sectionTitle}>Discover Recipes</Text>
+          {latest.map(item => (
+            <ListCard key={`latest-${item.id}`} {...cardProps(item)} />
           ))}
         </>
       )}
@@ -126,17 +327,17 @@ export default function Home({ onOpenRecipe }) {
 }
 
 const styles = StyleSheet.create({
-  scroll: {
+  scroll: { flex: 1, backgroundColor: '#f5f5f5' },
+  container: { paddingBottom: 24 },
+  fullCenter: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
   },
-  container: {
-    paddingBottom: 24,
-  },
-  banner: {
-    height: 62,
-    width: '100%',
-  },
+  loadingText: { color: '#aaa', fontSize: 14 },
+  banner: { height: 62, width: '100%' },
+
   searchBar: {
     marginTop: 16,
     marginHorizontal: 16,
@@ -149,18 +350,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: '#333',
-  },
-  clearBtn: {
-    paddingLeft: 8,
-  },
-  clearBtnText: {
-    fontSize: 14,
+  searchInput: { flex: 1, fontSize: 15, color: '#333' },
+  clearBtn: { paddingLeft: 8 },
+  clearBtnText: { fontSize: 14, color: '#aaa' },
+
+  filterLabel: {
+    fontSize: 11,
+    fontWeight: '600',
     color: '#aaa',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginTop: 20,
+    marginBottom: 8,
+    marginHorizontal: 16,
   },
+  pillRow: { paddingHorizontal: 16, gap: 8 },
+
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
@@ -169,109 +374,16 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginHorizontal: 16,
   },
-  hScroll: {
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  spinner: {
-    marginTop: 40,
-  },
-  noResults: {
-    marginHorizontal: 16,
-    color: '#888',
-    fontSize: 15,
-  },
+  hScroll: { paddingHorizontal: 16, gap: 12 },
+  spinner: { marginTop: 40 },
+  noResults: { marginHorizontal: 16, color: '#888', fontSize: 15 },
 
-  recipeCard: {
-    width: 160,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.07,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  cardImagePlaceholder: {
-    height: 100,
-    backgroundColor: '#e0e0e0',
-  },
-  cardName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#222',
-    marginTop: 8,
-    marginHorizontal: 10,
-  },
-  cardMeta: {
+  filterHeader: {
     flexDirection: 'row',
-    gap: 8,
-    marginHorizontal: 10,
-    marginTop: 4,
-    marginBottom: 10,
-  },
-  cardMetaText: {
-    fontSize: 12,
-    color: '#777',
-  },
-
-  categoryCard: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#fff',
-    borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.07,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    justifyContent: 'space-between',
+    marginRight: 16,
   },
-  categoryEmoji: {
-    fontSize: 28,
-  },
-  categoryName: {
-    fontSize: 11,
-    color: '#555',
-    marginTop: 4,
-    fontWeight: '500',
-  },
-
-  latestCard: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.07,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  latestImagePlaceholder: {
-    width: 90,
-    height: 90,
-    backgroundColor: '#e0e0e0',
-  },
-  latestInfo: {
-    flex: 1,
-    padding: 12,
-    justifyContent: 'center',
-  },
-  latestName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#222',
-    marginBottom: 2,
-  },
-  categoryTag: {
-    fontSize: 11,
-    color: '#C76649',
-    fontWeight: '500',
-    marginBottom: 4,
-  },
+  clearFilterBtn: { marginTop: 24, marginBottom: 12 },
+  clearFilterText: { color: '#C76649', fontSize: 14, fontWeight: '600' },
 });
