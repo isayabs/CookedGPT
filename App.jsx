@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -17,6 +20,8 @@ import Recipe from './src/screen/RecipeScreen';
 import WelcomeScreen from './src/screen/WelcomeScreen';
 import LoginScreen from './src/screen/LoginScreen';
 import SignUpScreen from './src/screen/SignUpScreen';
+
+import { useFavorites } from './src/hooks/useFavorites';
 
 const Stack = createNativeStackNavigator();
 
@@ -57,9 +62,11 @@ function AppContent({ navigation }) {
   const [activeTab, setActiveTab] = useState('home');
   const [prevTab, setPrevTab] = useState('home');
   const [navParams, setNavParams] = useState({});
-  const [favorites, setFavorites] = useState([]); // [recipeId, ...] newest first
   const [recipeUsage, setRecipeUsage] = useState({}); // { recipeId: count }
   const [recentlyUsed, setRecentlyUsed] = useState([]); // [recipeId, ...] newest first
+
+  // Persistent favorites — loaded from AsyncStorage on mount
+  const { favorites, toggleFavorite, isFavorited } = useFavorites();
 
   const safeAreaInsets = useSafeAreaInsets();
   const Page = PAGES[activeTab];
@@ -75,27 +82,25 @@ function AppContent({ navigation }) {
     setActiveTab(prevTab);
   }
 
-  function openRecipe(recipeId) {
-    setRecipeUsage(prev => ({ ...prev, [recipeId]: (prev[recipeId] || 0) + 1 }));
-    setRecentlyUsed(prev => [recipeId, ...prev.filter(id => id !== recipeId)].slice(0, 30));
-    navigate('recipe', { recipeId });
-  }
-
-  function toggleFavorite(recipeId) {
-    setFavorites(prev =>
-      prev.includes(recipeId)
-        ? prev.filter(id => id !== recipeId)
-        : [recipeId, ...prev]
+  function openRecipe(recipeId, source) {
+    setRecipeUsage(prev => ({
+      ...prev,
+      [recipeId]: (prev[recipeId] || 0) + 1,
+    }));
+    setRecentlyUsed(prev =>
+      [recipeId, ...prev.filter(id => id !== recipeId)].slice(0, 30),
     );
+    navigate('recipe', { recipeId, source });
   }
 
   const pageProps = {
     navigation,
     onOpenRecipe: openRecipe,
+    toggleFavorite,
+    isFavorited,
     ...(activeTab === 'recipe' && {
       recipeId: navParams.recipeId,
-      isFavorited: favorites.includes(navParams.recipeId),
-      onToggleFavorite: toggleFavorite,
+      source: navParams.source,
     }),
     ...(activeTab === 'favorites' && {
       favorites,
