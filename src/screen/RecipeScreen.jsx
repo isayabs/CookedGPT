@@ -1,9 +1,65 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { ALL_RECIPES } from '../../data/index';
+import { useEffect, useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  ActivityIndicator,
+} from 'react-native';
+import YoutubePlayer from 'react-native-youtube-iframe';
+import { fetchMealById, fetchDrinkById } from '../api/recipes';
 
-export default function Recipe({ recipeId, isFavorited, onToggleFavorite }) {
-  const recipe = ALL_RECIPES.find(r => r.id === recipeId);
+// Extract the YouTube video ID from a full URL or bare ID string
+function extractYouTubeId(url) {
+  if (!url) return null;
+  const match = url.match(
+    /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([A-Za-z0-9_-]{11})/,
+  );
+  return match ? match[1] : url.length === 11 ? url : null;
+}
+
+export default function RecipeScreen({
+  recipeId,
+  source,
+  toggleFavorite,
+  isFavorited,
+}) {
+  const [recipe, setRecipe] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [videoPlaying, setVideoPlaying] = useState(false);
+
+  useEffect(() => {
+    setVideoPlaying(false); // stop video when navigating to a new recipe
+    async function load() {
+      try {
+        setLoading(true);
+        const data =
+          source === 'meal'
+            ? await fetchMealById(recipeId)
+            : await fetchDrinkById(recipeId);
+        setRecipe(data);
+      } catch (e) {
+        console.error('Recipe fetch error:', e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [recipeId, source]);
+
+  const onStateChange = useCallback(state => {
+    if (state === 'ended') setVideoPlaying(false);
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#C76649" />
+      </View>
+    );
+  }
 
   if (!recipe) {
     return (
@@ -13,43 +69,123 @@ export default function Recipe({ recipeId, isFavorited, onToggleFavorite }) {
     );
   }
 
-  return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Image Placeholder */}
-      <View style={styles.imagePlaceholder} />
+  // ─── Parse ────────────────────────────────────────────────────────────────
 
-      {/* Header Row */}
+  const name = recipe.strMeal || recipe.strDrink || '';
+  const thumb = recipe.strMealThumb || recipe.strDrinkThumb || null;
+  const category = recipe.strCategory ?? '';
+  const area = recipe.strArea ?? '';
+  const youtubeId = extractYouTubeId(recipe.strYoutube);
+
+  const ingredients = [];
+  for (let i = 1; i <= 20; i++) {
+    const ing = recipe[`strIngredient${i}`];
+    const measure = recipe[`strMeasure${i}`];
+    if (ing?.trim()) {
+      ingredients.push(`${measure?.trim() ?? ''} ${ing.trim()}`.trim());
+    }
+  }
+
+  const raw = recipe.strInstructions ?? '';
+  let steps = [];
+  if (/step\s*\d+/i.test(raw)) {
+    steps = raw
+      .split(/step\s*\d+/i)
+      .map(s => s.trim())
+      .filter(Boolean);
+  } else {
+    steps = raw
+      .split(/\r?\n|\.\s+/)
+      .map(s => s.trim())
+      .filter(Boolean);
+  }
+
+  const snapshot = { name, thumb, category, area };
+  const favorited = isFavorited(recipeId, source);
+
+  return (
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Hero image — hidden when YouTube player is shown */}
+      {!youtubeId &&
+        (thumb ? (
+          <Image source={{ uri: thumb }} style={styles.image} />
+        ) : (
+          <View style={styles.imagePlaceholder} />
+        ))}
+
+      {/* YouTube player */}
+      {youtubeId && (
+        <View style={styles.videoWrapper}>
+          <YoutubePlayer
+            height={220}
+            play={videoPlaying}
+            videoId={youtubeId}
+            onChangeState={onStateChange}
+          />
+        </View>
+      )}
+
+      {/* Header */}
       <View style={styles.headerRow}>
         <View style={styles.headerText}>
-          <Text style={styles.name}>{recipe.name}</Text>
-          <Text style={styles.category}>{recipe.category}</Text>
+          <Text style={styles.name}>{name}</Text>
+          {category ? <Text style={styles.category}>{category}</Text> : null}
+          {area ? <Text style={styles.area}>{area}</Text> : null}
         </View>
-        <TouchableOpacity onPress={() => onToggleFavorite(recipe.id)} style={styles.favoriteBtn} activeOpacity={0.7}>
-          <Text style={styles.favoriteIcon}>{isFavorited ? '❤️' : '🤍'}</Text>
+
+        <TouchableOpacity
+          onPress={() => toggleFavorite(recipeId, source, snapshot)}
+          style={styles.heartBtn}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Text style={styles.heartIcon}>
+            {favorited ? '❤️' : '🤍' + '\u300A'}
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Meta */}
-      <View style={styles.metaRow}>
-        <View style={styles.metaChip}>
-          <Text style={styles.metaIcon}>⏱</Text>
-          <Text style={styles.metaText}>{recipe.time}</Text>
-        </View>
-        <View style={styles.metaChip}>
-          <Text style={styles.metaIcon}>🔥</Text>
-          <Text style={styles.metaText}>{recipe.calories} cal</Text>
-        </View>
-      </View>
+      {/* Watch button (only shown when there's a video but it's not playing) */}
+      {youtubeId && !videoPlaying && (
+        <TouchableOpacity
+          style={styles.watchBtn}
+          onPress={() => setVideoPlaying(true)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.watchBtnText}>▶ Watch Video</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Ingredients */}
-      <Text style={styles.sectionTitle}>Ingredients</Text>
-      <View style={styles.ingredientsWrap}>
-        {recipe.ingredients.map(ingredient => (
-          <View key={ingredient} style={styles.ingredientChip}>
-            <Text style={styles.ingredientText}>{ingredient}</Text>
+      {ingredients.length > 0 && (
+        <>
+          <Text style={styles.sectionTitle}>Ingredients</Text>
+          <View style={styles.ingredientsWrap}>
+            {ingredients.map((item, i) => (
+              <View key={`ing-${i}`} style={styles.ingredientChip}>
+                <Text style={styles.ingredientText}>{item}</Text>
+              </View>
+            ))}
           </View>
-        ))}
-      </View>
+        </>
+      )}
+
+      {/* Instructions */}
+      {steps.length > 0 && (
+        <>
+          <Text style={styles.sectionTitle}>Instructions</Text>
+          {steps.map((step, i) => (
+            <View key={`step-${i}`} style={styles.stepRow}>
+              <Text style={styles.stepNumber}>{i + 1}.</Text>
+              <Text style={styles.stepText}>{step}</Text>
+            </View>
+          ))}
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -57,82 +193,63 @@ export default function Recipe({ recipeId, isFavorited, onToggleFavorite }) {
 const ACCENT = '#C76649';
 
 const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  container: {
-    paddingBottom: 32,
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorText: {
-    color: '#aaa',
-    fontSize: 16,
-  },
-  imagePlaceholder: {
-    height: 220,
-    backgroundColor: '#ddd',
+  scroll: { flex: 1, backgroundColor: '#f5f5f5' },
+  container: { paddingBottom: 32 },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  errorText: { color: '#aaa', fontSize: 16 },
+
+  image: { height: 220, width: '100%' },
+  imagePlaceholder: { height: 220, backgroundColor: '#ddd', width: '100%' },
+
+  videoWrapper: {
     width: '100%',
+    backgroundColor: '#000',
   },
+
   headerRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: 16,
+    gap: 12,
   },
-  headerText: {
-    flex: 1,
-    marginRight: 12,
-  },
+  headerText: { flex: 1 },
   name: {
     fontSize: 24,
     fontWeight: '800',
     color: '#111',
     marginBottom: 4,
   },
-  category: {
-    fontSize: 13,
-    color: ACCENT,
-    fontWeight: '600',
-  },
-  favoriteBtn: {
+  category: { fontSize: 13, color: ACCENT, fontWeight: '600', marginBottom: 2 },
+  area: { fontSize: 12, color: '#999' },
+
+  heartBtn: {
     paddingTop: 4,
+    paddingLeft: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 36,
+    minHeight: 36,
   },
-  favoriteIcon: {
-    fontSize: 28,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 16,
-    marginTop: 12,
-  },
-  metaChip: {
+  heartIcon: { fontSize: 28, lineHeight: 34 },
+
+  watchBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    gap: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+    alignSelf: 'flex-start',
+    marginTop: 12,
+    marginHorizontal: 16,
+    backgroundColor: ACCENT,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 24,
   },
-  metaIcon: {
+  watchBtnText: {
+    color: '#fff',
     fontSize: 14,
+    fontWeight: '700',
   },
-  metaText: {
-    fontSize: 13,
-    color: '#555',
-    fontWeight: '500',
-  },
+
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
@@ -141,6 +258,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginHorizontal: 16,
   },
+
   ingredientsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -155,8 +273,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
   },
-  ingredientText: {
-    fontSize: 13,
-    color: '#333',
+  ingredientText: { fontSize: 13, color: '#333' },
+
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginHorizontal: 16,
+    marginBottom: 10,
   },
+  stepNumber: { fontWeight: '700', marginRight: 8, color: ACCENT },
+  stepText: { flex: 1, color: '#444', lineHeight: 20 },
 });
