@@ -5,6 +5,7 @@ import CameraResult from '../components/CameraResult';
 import CameraPermissionError from '../components/CameraPermissionError';
 import { Camera, useCameraDevice } from 'react-native-vision-camera';
 import { styles, ACCENT } from '../styles/CameraScreen.styles';
+import { detectIngredientsFromPhoto } from '../api/detectIngredients';
 
 const SUGGESTED = ALL_INGREDIENTS.slice(0, 12);
 const RECENT    = ['Salmon', 'Broccoli', 'Rice', 'Soy Sauce', 'Ginger', 'Garlic', 'Chicken'];
@@ -175,8 +176,30 @@ async function capturePhoto() {
     setCapturedPhoto(null);
   }
 
-  function usePhoto() {
-    console.log('Use photo:', capturedPhoto);
+  async function usePhoto() {
+    if (!capturedPhoto) return;
+
+    try {
+      setScanState('scanning');
+
+      const result = await detectIngredientsFromPhoto(capturedPhoto);
+
+      const found = (result.ingredients || []).map(item => {
+        const lower = item.toLowerCase();
+        return lower.charAt(0).toUpperCase() + lower.slice(1);
+      });
+
+      setScanFound(found);
+      setScanState(found.length > 0 ? 'found' : 'not_found');
+    } catch (error) {
+      console.log('Detect error:', error);
+      setScanFound([]);
+      setScanState('not_found');
+    }
+  }
+
+  function closeScanResult() {
+    setScanState(null);
   }
 
   return (
@@ -413,6 +436,15 @@ async function capturePhoto() {
           )}
 
         </ScrollView>
+      )}
+
+      {scanState && (
+        <CameraResult
+          scanState={scanState}
+          foundIngredients={scanFound}
+          onClose={closeScanResult}
+          onAddIngredients={handleAddScanned}
+        />
       )}
     </View>
   );
