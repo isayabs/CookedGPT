@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView,
 } from 'react-native';
@@ -12,6 +12,10 @@ import {
  */
 export default function CameraResult({ scanState, foundIngredients = [], onClose, onAddIngredients }) {
   const [selected, setSelected] = useState(() => new Set(foundIngredients));
+
+  useEffect(() => {
+  setSelected(new Set(foundIngredients));
+}, [foundIngredients]);
 
   function toggleItem(item) {
     setSelected(prev => {
