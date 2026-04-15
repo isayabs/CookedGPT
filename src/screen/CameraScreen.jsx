@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, PermissionsAndroid, Platform, Linking, AppState, Image } from 'react-native';
-import { ALL_INGREDIENTS, ALL_RECIPES } from '../../data/index';
+import { ALL_INGREDIENTS } from '../../data/index';
 import CameraResult from '../components/CameraResult';
 import CameraPermissionError from '../components/CameraPermissionError';
 import { Camera, useCameraDevice } from 'react-native-vision-camera';
 import { styles, ACCENT } from '../styles/CameraScreen.styles';
 import { detectIngredientsFromPhoto } from '../api/detectIngredients';
+import { findMealsByIngredients } from '../api/recipes';
 
 const SUGGESTED = ALL_INGREDIENTS.slice(0, 12);
 const RECENT    = ['Salmon', 'Broccoli', 'Rice', 'Soy Sauce', 'Ginger', 'Garlic', 'Chicken'];
@@ -42,6 +43,7 @@ export default function CameraScreen({ onOpenRecipe }) {
   const [ingredientQuery, setIngredientQuery] = useState('');
   const [filteredIngredients, setFilteredIngredients] = useState(SUGGESTED);
   const [isSearching, setIsSearching] = useState(false);
+  const [isFindingRecipes, setIsFindingRecipes] = useState(false);
   const [recipeResults, setRecipeResults] = useState([]);
   const [showResults, setShowResults] = useState(false);
   const [cameraPermission, setCameraPermission] = useState('unknown');
@@ -52,61 +54,61 @@ export default function CameraScreen({ onOpenRecipe }) {
   console.log('Camera device:', device);
 
   async function requestCameraPermission() {
-  if (Platform.OS === 'android') {
-    try {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.CAMERA,
-        {
-          title: 'Camera Permission',
-          message: 'Allow CookedGPT to scan ingredients using your camera.',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'Allow',
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          {
+            title: 'Camera Permission',
+            message: 'Allow CookedGPT to scan ingredients using your camera.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'Allow',
+          }
+        );
+
+        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+          setCameraPermission('granted');
+        } else {
+          setCameraPermission('denied');
         }
+
+      } catch (err) {
+        console.warn('Camera permission error:', err?.message || err);
+        setCameraPermission('denied');
+      }
+    }
+  }
+
+  function openAppSettings() {
+    Linking.openSettings();
+  }
+
+  async function checkCameraPermission() {
+    if (Platform.OS === 'android') {
+      const isGranted = await PermissionsAndroid.check(
+        PermissionsAndroid.PERMISSIONS.CAMERA
       );
 
-      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+      if (isGranted) {
         setCameraPermission('granted');
       } else {
         setCameraPermission('denied');
       }
-
-    } catch (err) {
-      console.warn('Camera permission error:', err?.message || err);
-      setCameraPermission('denied');
     }
   }
-}
 
-function openAppSettings() {
-  Linking.openSettings();
-}
-
-async function checkCameraPermission() {
-  if (Platform.OS === 'android') {
-    const isGranted = await PermissionsAndroid.check(
-      PermissionsAndroid.PERMISSIONS.CAMERA
-    );
-
-    if (isGranted) {
-      setCameraPermission('granted');
-    } else {
-      setCameraPermission('denied');
+  async function capturePhoto() {
+    try {
+      if (cameraRef.current) {
+        const photo = await cameraRef.current.takePhoto();
+        setCapturedPhoto(photo.path);
+        console.log('Captured photo:', photo);
+      }
+    } catch (error) {
+      console.log('Capture error:', error);
     }
   }
-}
-
-async function capturePhoto() {
-  try {
-    if (cameraRef.current) {
-      const photo = await cameraRef.current.takePhoto();
-      setCapturedPhoto(photo.path);
-      console.log('Captured photo:', photo);
-    }
-  } catch (error) {
-    console.log('Capture error:', error);
-  }
-}
 
   useEffect(() => {
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
@@ -160,16 +162,33 @@ async function capturePhoto() {
     setShowResults(false);
   }
 
-  function findRecipes() {
-    const matches = ALL_RECIPES
-      .map(r => ({
-        ...r,
-        matchCount: r.ingredients.filter(i => yourIngredients.includes(i)).length,
-      }))
-      .filter(r => r.matchCount > 0)
-      .sort((a, b) => b.matchCount - a.matchCount);
-    setRecipeResults(matches);
-    setShowResults(true);
+  async function findRecipes() {
+    if (yourIngredients.length === 0) return;
+
+    try {
+      setIsFindingRecipes(true);
+      setShowResults(false);
+
+      const results = await findMealsByIngredients(yourIngredients);
+
+      const normalizedResults = (results || []).map(recipe => ({
+        ...recipe,
+        matchCount:
+          recipe.matchCount ??
+          recipe.match_count ??
+          recipe.matched_ingredients_count ??
+          0,
+      }));
+
+      setRecipeResults(normalizedResults);
+      setShowResults(true);
+    } catch (error) {
+      console.log('Find recipes error:', error);
+      setRecipeResults([]);
+      setShowResults(true);
+    } finally {
+      setIsFindingRecipes(false);
+    }
   }
 
   function retakePhoto() {
@@ -405,12 +424,14 @@ async function capturePhoto() {
 
           {/* Find Recipe Button */}
           <TouchableOpacity
-            style={[styles.findBtn, yourIngredients.length === 0 && styles.findBtnDisabled]}
-            disabled={yourIngredients.length === 0}
+            style={[styles.findBtn, (yourIngredients.length === 0 || isFindingRecipes) && styles.findBtnDisabled]}
+            disabled={yourIngredients.length === 0 || isFindingRecipes}
             onPress={findRecipes}
             activeOpacity={0.8}
           >
-            <Text style={styles.findBtnText}>Find Recipe</Text>
+            <Text style={styles.findBtnText}>
+              {isFindingRecipes ? 'Finding Recipes...' : 'Find Recipe'}
+            </Text>
           </TouchableOpacity>
 
           {/* Recipe Results */}
@@ -420,14 +441,37 @@ async function capturePhoto() {
                 {recipeResults.length === 0 ? 'No matching recipes' : `${recipeResults.length} Recipe${recipeResults.length > 1 ? 's' : ''} Found`}
               </Text>
               {recipeResults.map(recipe => (
-                <TouchableOpacity key={recipe.id} style={styles.resultCard} onPress={() => onOpenRecipe(recipe.id)} activeOpacity={0.75}>
+                <TouchableOpacity
+                  key={recipe.id}
+                  style={styles.resultCard}
+                  onPress={() => onOpenRecipe(recipe.id, recipe.source)}
+                  activeOpacity={0.75}
+                >
+                  {/* Thumbnail */}
+                  {recipe.thumb ? (
+                    <Image
+                      source={{ uri: recipe.thumb }}
+                      style={styles.resultImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.resultImagePlaceholder}>
+                      <Text style={{ color: '#999' }}>No Image</Text>
+                    </View>
+                  )}
+
+                  {/* Info */}
                   <View style={styles.resultInfo}>
                     <Text style={styles.resultName}>{recipe.name}</Text>
                     <Text style={styles.resultCategory}>{recipe.category}</Text>
+
                     <View style={styles.resultMeta}>
-                      <Text style={styles.resultMetaText}>⏱ {recipe.time}</Text>
-                      <Text style={styles.resultMetaText}>🔥 {recipe.calories} cal</Text>
-                      <Text style={styles.resultMetaText}>✅ {recipe.matchCount} match{recipe.matchCount > 1 ? 'es' : ''}</Text>
+                      <Text style={styles.resultMetaText}>
+                        🌍 {recipe.area || 'Unknown'}
+                      </Text>
+                      <Text style={styles.resultMetaText}>
+                        ✅ {recipe.matchCount} match{recipe.matchCount > 1 ? 'es' : ''}
+                      </Text>
                     </View>
                   </View>
                 </TouchableOpacity>
