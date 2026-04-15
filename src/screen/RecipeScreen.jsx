@@ -25,6 +25,7 @@ export default function RecipeScreen({
   source,
   toggleFavorite,
   isFavorited,
+  onBack,
 }) {
   const [recipe, setRecipe] = useState(null);
   const [loading, setLoading] = useState(true);

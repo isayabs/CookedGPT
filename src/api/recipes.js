@@ -160,3 +160,54 @@ export async function searchDrinks(query) {
   const data = await res.json();
   return (data.drinks ?? []).map(normalizeDrink);
 }
+
+// ─── Find meals by ingredients ────────────────────────────────────────────────
+// Uses TheMealDB ingredient filter endpoint once per ingredient,
+// then combines and ranks meals by how many selected ingredients they match.
+
+export async function findMealsByIngredients(ingredients = []) {
+  const cleaned = ingredients
+    .map(i => i.trim())
+    .filter(Boolean);
+
+  if (cleaned.length === 0) return [];
+
+  const allResults = await Promise.all(
+    cleaned.map(async ingredient => {
+      const res = await fetch(
+        `${MEAL_BASE}/filter.php?i=${encodeURIComponent(ingredient)}`,
+      );
+      const data = await res.json();
+
+      return (data.meals ?? []).map(meal => ({
+        ...normalizeMeal(meal),
+        matchedIngredient: ingredient,
+      }));
+    }),
+  );
+
+  const flat = allResults.flat();
+  const grouped = new Map();
+
+  for (const meal of flat) {
+    const existing = grouped.get(meal.id);
+
+    if (existing) {
+      existing.matchCount += 1;
+      existing.matchedIngredients.push(meal.matchedIngredient);
+    } else {
+      grouped.set(meal.id, {
+        ...meal,
+        matchCount: 1,
+        matchedIngredients: [meal.matchedIngredient],
+      });
+    }
+  }
+
+  return Array.from(grouped.values()).sort((a, b) => {
+    if (b.matchCount !== a.matchCount) {
+      return b.matchCount - a.matchCount;
+    }
+    return a.name.localeCompare(b.name);
+  });
+}

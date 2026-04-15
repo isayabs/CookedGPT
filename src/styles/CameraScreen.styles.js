@@ -143,7 +143,7 @@ export const styles = StyleSheet.create({
         alignItems: 'center',
         minHeight: 40,
         justifyContent: 'center',
-        },
+    },
 
     // Add tab
     addContainer: {
@@ -233,17 +233,39 @@ export const styles = StyleSheet.create({
         fontSize: 13,
         fontStyle: 'italic',
     },
+
+    // 🔥 UPDATED RESULT CARD (thumbnail support)
     resultCard: {
+        flexDirection: 'row', // <-- IMPORTANT
+        alignItems: 'center',
         backgroundColor: '#fff',
         borderRadius: 12,
         marginBottom: 10,
-        padding: 14,
+        padding: 12,
         shadowColor: '#000',
         shadowOpacity: 0.06,
         shadowRadius: 4,
         shadowOffset: { width: 0, height: 2 },
         elevation: 2,
     },
+
+    resultImage: {
+        width: 80,
+        height: 80,
+        borderRadius: 12,
+        marginRight: 12,
+    },
+
+    resultImagePlaceholder: {
+        width: 80,
+        height: 80,
+        borderRadius: 12,
+        marginRight: 12,
+        backgroundColor: '#eee',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+
     resultInfo: {
         flex: 1,
     },
@@ -267,6 +289,7 @@ export const styles = StyleSheet.create({
         fontSize: 12,
         color: '#777',
     },
+
     findBtn: {
         marginTop: 32,
         backgroundColor: ACCENT,
@@ -282,5 +305,4 @@ export const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '700',
     },
-    });
-    
+});

@@ -78,8 +78,18 @@ function AppContent({ navigation }) {
   }
 
   function goBack() {
+    console.log('goBack called', { activeTab, prevTab, navParams });
+
+    const fromTab = navParams.fromTab;
+
     setNavParams({});
-    setActiveTab(prevTab);
+
+    if (fromTab) {
+      setActiveTab(fromTab);
+      return;
+    }
+
+    setActiveTab(prevTab || 'home');
   }
 
   function openRecipe(recipeId, source) {
@@ -90,7 +100,12 @@ function AppContent({ navigation }) {
     setRecentlyUsed(prev =>
       [recipeId, ...prev.filter(id => id !== recipeId)].slice(0, 30),
     );
-    navigate('recipe', { recipeId, source });
+
+    navigate('recipe', {
+      recipeId,
+      source,
+      fromTab: activeTab,
+    });
   }
 
   const pageProps = {
