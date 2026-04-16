@@ -1,8 +1,8 @@
-import express from "express";
-import multer from "multer";
-import fetch from "node-fetch";
-import cors from "cors";
-import dotenv from "dotenv";
+import express from 'express';
+import multer from 'multer';
+import fetch from 'node-fetch';
+import cors from 'cors';
+import dotenv from 'dotenv';
 
 dotenv.config();
 
@@ -14,25 +14,25 @@ app.use(cors());
 const PREDICTION_KEY = process.env.AZURE_PREDICTION_KEY;
 const PREDICTION_URL = process.env.AZURE_ENDPOINT;
 
-app.post("/detect", upload.single("image"), async (req, res) => {
+app.post('/detect', upload.single('image'), async (req, res) => {
   try {
     if (!PREDICTION_KEY || !PREDICTION_URL) {
       return res.status(500).json({
-        error: "Missing Azure environment variables.",
+        error: 'Missing Azure environment variables.',
       });
     }
 
     if (!req.file) {
       return res.status(400).json({
-        error: "No image uploaded.",
+        error: 'No image uploaded.',
       });
     }
 
     const response = await fetch(PREDICTION_URL, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Prediction-Key": PREDICTION_KEY,
-        "Content-Type": "application/octet-stream",
+        'Prediction-Key': PREDICTION_KEY,
+        'Content-Type': 'application/octet-stream',
       },
       body: req.file.buffer,
     });
@@ -48,19 +48,19 @@ app.post("/detect", upload.single("image"), async (req, res) => {
     const ingredients = [
       ...new Set(
         (data.predictions || [])
-          .filter((p) => p.probability > 0.4)
+          .filter(p => p.probability > 0.4)
           .sort((a, b) => b.probability - a.probability)
-          .map((p) => p.tagName)
+          .map(p => p.tagName),
       ),
     ];
 
     res.json({ ingredients, raw: data.predictions || [] });
   } catch (err) {
-    console.error("Detect error:", err);
-    res.status(500).json({ error: "Something went wrong." });
+    console.error('Detect error:', err);
+    res.status(500).json({ error: 'Something went wrong.' });
   }
 });
 
-app.listen(3001, () => {
-  console.log("Server running on http://localhost:3001");
+app.listen(3001, '0.0.0.0', () => {
+  console.log('Server running on http://localhost:3001');
 });
