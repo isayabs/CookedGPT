@@ -66,5 +66,5 @@ app.listen(3001, '0.0.0.0', () => {
 });
 
 app.get('/', (req, res) => {
-  res.send('Server is working 🚀');
+  res.send('Server is working!');
 });
