@@ -7,16 +7,26 @@ export default function Header({ activeTab, onNavigate, onBack }) {
 
   if (activeTab === 'profile' || activeTab === 'recipe') {
     return (
-      <View style={styles.container}>
-        <TouchableOpacity onPress={onBack}>
-          <Text style={styles.backButton}>←</Text>
-        </TouchableOpacity>
+      <View style={{ backgroundColor: '#C76649', paddingTop: insets.top }}>
+        <View style={styles.container}>
+          <TouchableOpacity
+            onPress={() => {
+              console.log('BACK PRESSED');
+              onBack?.();
+            }}
+            activeOpacity={0.7}
+            hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+            style={styles.backTouch}
+          >
+            <Text style={styles.backButton}>←</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
 
   return (
-    <View style={{ backgroundColor: '#C76649', paddingTop: insets.top - 25 }}>
+    <View style={{ backgroundColor: '#C76649', paddingTop: insets.top }}>
       <View style={styles.container}>
         <Image
           source={require('../../res/appIcon.png')}
@@ -52,20 +62,21 @@ const styles = StyleSheet.create({
     height: 40,
     width: 80,
   },
-  
   profileImage: {
     height: 36,
     width: 36,
     borderRadius: 20,
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
+  backTouch: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 44,
+    minHeight: 44,
   },
   backButton: {
     color: '#fff',
-    fontSize: 48,
+    fontSize: 34,
     fontWeight: '600',
+    lineHeight: 36,
   },
 });

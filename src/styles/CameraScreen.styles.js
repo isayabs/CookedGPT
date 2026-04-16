@@ -1,4 +1,17 @@
 import { StyleSheet } from 'react-native';
+import { Dimensions } from 'react-native';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const isSmallScreen = SCREEN_HEIGHT < 750;
+
+const VIEWFINDER_HEIGHT = isSmallScreen ? 300 : 420;
+const SCAN_PADDING_VERTICAL = isSmallScreen ? 16 : 32;
+const HINT_MARGIN_TOP = isSmallScreen ? -40 : -80;
+const CONTROLS_PADDING_HORIZONTAL = isSmallScreen ? 20 : 32;
+const ICON_FONT_SIZE = isSmallScreen ? 24 : 28;
+const LABEL_FONT_SIZE = isSmallScreen ? 10 : 11;
+const CAPTURE_BTN_SIZE = isSmallScreen ? 64 : 72;
+const CAPTURE_BTN_INNER_SIZE = isSmallScreen ? 50 : 56;
 
 export const ACCENT = '#C76649';
 
@@ -41,11 +54,11 @@ export const styles = StyleSheet.create({
         backgroundColor: '#111',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: 32,
+        paddingVertical: SCAN_PADDING_VERTICAL,
     },
     viewfinderWrap: {
         width: '92%',
-        height: 420,
+        height: VIEWFINDER_HEIGHT,
         position: 'relative',
         alignItems: 'center',
         justifyContent: 'center',
@@ -104,46 +117,46 @@ export const styles = StyleSheet.create({
         color: '#aaa',
         fontSize: 13,
         alignSelf: 'center',
-        marginTop: -80
+        marginTop: HINT_MARGIN_TOP,
     },
     scanControls: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         width: '100%',
-        paddingHorizontal: 32,
+        paddingHorizontal: CONTROLS_PADDING_HORIZONTAL,
     },
     iconBtn: {
         alignItems: 'center',
     },
     iconBtnText: {
-        fontSize: 28,
+        fontSize: ICON_FONT_SIZE,
     },
     iconBtnLabel: {
         color: '#fff',
-        fontSize: 11,
+        fontSize: LABEL_FONT_SIZE,
         marginTop: 4,
     },
     captureBtn: {
-        width: 72,
-        height: 72,
-        borderRadius: 36,
+        width: CAPTURE_BTN_SIZE,
+        height: CAPTURE_BTN_SIZE,
+        borderRadius: CAPTURE_BTN_SIZE / 2,
         borderWidth: 4,
         borderColor: '#fff',
         alignItems: 'center',
         justifyContent: 'center',
     },
     captureBtnInner: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
+        width: CAPTURE_BTN_INNER_SIZE,
+        height: CAPTURE_BTN_INNER_SIZE,
+        borderRadius: CAPTURE_BTN_INNER_SIZE / 2,
         backgroundColor: '#fff',
     },
     messageArea: {
         alignItems: 'center',
         minHeight: 40,
         justifyContent: 'center',
-        },
+    },
 
     // Add tab
     addContainer: {
@@ -233,17 +246,39 @@ export const styles = StyleSheet.create({
         fontSize: 13,
         fontStyle: 'italic',
     },
+
+    // 🔥 UPDATED RESULT CARD (thumbnail support)
     resultCard: {
+        flexDirection: 'row', // <-- IMPORTANT
+        alignItems: 'center',
         backgroundColor: '#fff',
         borderRadius: 12,
         marginBottom: 10,
-        padding: 14,
+        padding: 12,
         shadowColor: '#000',
         shadowOpacity: 0.06,
         shadowRadius: 4,
         shadowOffset: { width: 0, height: 2 },
         elevation: 2,
     },
+
+    resultImage: {
+        width: 80,
+        height: 80,
+        borderRadius: 12,
+        marginRight: 12,
+    },
+
+    resultImagePlaceholder: {
+        width: 80,
+        height: 80,
+        borderRadius: 12,
+        marginRight: 12,
+        backgroundColor: '#eee',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+
     resultInfo: {
         flex: 1,
     },
@@ -267,6 +302,7 @@ export const styles = StyleSheet.create({
         fontSize: 12,
         color: '#777',
     },
+
     findBtn: {
         marginTop: 32,
         backgroundColor: ACCENT,
@@ -282,5 +318,4 @@ export const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '700',
     },
-    });
-    
+});
