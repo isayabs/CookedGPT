@@ -8,7 +8,7 @@ export async function detectIngredientsFromPhoto(photoPath) {
   });
 
   // Have to change the 10.0.2.2 if using real device or iOS simulator, but this works for Android emulator
-  const response = await fetch('http://10.0.2.2:3001/detect', {
+  const response = await fetch('http://localhost:3001/detect', {
     method: 'POST',
     body: formData,
   });
